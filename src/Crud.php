@@ -1,0 +1,308 @@
+<?php
+namespace Sy\Db\MySql;
+
+use Psr\SimpleCache\CacheInterface;
+use Sy\Db\Sql;
+use Sy\Db\MySql\Select;
+use Sy\Db\MySql\Where;
+
+class Crud extends Gate {
+
+	private $table;
+
+	private $pk;
+
+	/**
+	 * @var CacheInterface
+	 */
+	private $cache;
+
+	/**
+	 * @param string $table
+	 * @param array $pk Optionnal primary key
+	 */
+	public function __construct($table, $pk = []) {
+		parent::__construct();
+		$this->table = $table;
+		$this->pk = $pk;
+		$this->cache = null;
+	}
+
+	/**
+	 * @param CacheInterface $cache
+	 * @return void
+	 */
+	public function setCacheEngine($cache) {
+		$this->cache = $cache;
+	}
+
+	/**
+	 * Add a row with specified data.
+	 *
+	 * @param array $fields Column-value pairs.
+	 * @return int The number of affected rows.
+	 */
+	public function create(array $fields) {
+		$res = $this->insert($this->table, $fields);
+
+		// Clear cache
+		$this->clearCache();
+
+		return $res;
+	}
+
+	/**
+	 * Add multiple rows with specified data.
+	 *
+	 * @param array $data array of array column-value pairs.
+	 * @return int The number of affected rows.
+	 */
+	public function createMany(array $data) {
+		$res = $this->insertMany($this->table, $data);
+
+		// Clear cache
+		$this->clearCache();
+
+		return $res;
+	}
+
+	/**
+	 * Retrieve a row by primary key.
+	 *
+	 * @param array $pk Column-value pairs.
+	 * @return array
+	 */
+	public function retrieve(array $pk) {
+		// Cache hit
+		$key = $this->getCacheKey('retrieve', $pk);
+		$res = $this->getCache($key);
+		if (!empty($res)) return $res;
+
+		// Cache miss
+		$res = $this->queryOne(new Select([
+			'FROM'  => $this->table,
+			'WHERE' => $pk,
+		]), \PDO::FETCH_ASSOC);
+
+		// If $pk is not the real primary key, just unique key for example
+		if (!empty($res) and !empty($this->pk) and $this->pk != array_keys($pk)) {
+			$realpk = [];
+			foreach ($this->pk as $k) {
+				$realpk[$k] = $res[$k];
+			}
+
+			$res = $this->retrieve($realpk);
+		}
+
+		$this->setCache($key, $res);
+		return $res;
+	}
+
+	/**
+	 * Return all rows.
+	 *
+	 * @param array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
+	 * @return \PDOStatement
+	 */
+	public function retrieveAll(array $parameters = []) {
+		// Cache hit
+		$key = $this->getCacheKey('retrieveAll', $parameters);
+		$res = $this->getCache($key);
+		if (!empty($res)) return $res;
+
+		// Cache miss
+		$parameters['FROM'] = $this->table;
+		$res = $this->queryAll(new Select($parameters), \PDO::FETCH_ASSOC);
+		$this->setCache($key, $res);
+		return $res;
+	}
+
+	/**
+	 * Return a PDOStatement in order to do an iteration.
+	 *
+	 * @param array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
+	 * @return \PDOStatement
+	 */
+	public function retrieveStatement(array $parameters = []) {
+		$parameters['FROM'] = $this->table;
+		$res = $this->query(new Select($parameters));
+		return $res;
+	}
+
+	/**
+	 * Update a row by primary key.
+	 *
+	 * @param array $pk Column-value pairs.
+	 * @param array $bind Column-value pairs or array of string
+	 * @return int The number of affected rows.
+	 */
+	public function update(array $pk, array $bind) {
+		$where = new Where($pk);
+		if (array_values($bind) !== $bind) { // is assoc
+			$s = array_map(function($k) use(&$bind) {
+				if ($bind[$k] instanceof Expr) {
+					$v = $bind[$k]->__toString();
+					unset($bind[$k]);
+					return '`' . implode('`.`', explode('.', $k)) . '` = ' . $v;
+				} else {
+					return '`' . implode('`.`', explode('.', $k)) . '` = ?';
+				}
+			}, array_keys($bind));
+			$set = implode(',', $s);
+		} else {
+			$set = implode(',', $bind);
+			$bind = [];
+		}
+		$sql = new Sql("
+			UPDATE $this->table
+			SET $set
+			WHERE $where
+		", array_merge(array_values($bind), $where->getParams()));
+		$res = $this->execute($sql);
+
+		// If $pk is not the real primary key, just unique key for example
+		if (!empty($this->pk) and $this->pk != array_keys($pk)) {
+			$res = $this->retrieve($pk);
+			$realpk = [];
+			foreach ($this->pk as $k) {
+				$realpk[$k] = $res[$k];
+			}
+			$this->clearRowCache($realpk);
+		}
+
+		// Clear cache
+		$this->clearRowCache($pk);
+
+		return $res;
+	}
+
+	/**
+	 * Delete a row by primary key.
+	 *
+	 * @param array $pk Column-value pairs.
+	 * @return int The number of affected rows.
+	 */
+	public function delete(array $pk) {
+		$where = new Where($pk);
+		$sql = new Sql("DELETE FROM $this->table WHERE $where", $where->getParams());
+		$res = $this->execute($sql);
+
+		// If $pk is not the real primary key, just unique key for example
+		if (!empty($this->pk) and $this->pk != array_keys($pk)) {
+			$res = $this->retrieve($pk);
+			$realpk = [];
+			foreach ($this->pk as $k) {
+				$realpk[$k] = $res[$k];
+			}
+			$this->clearRowCache($realpk);
+		}
+
+		// Clear cache
+		$this->clearRowCache($pk);
+
+		return $res;
+	}
+
+	/**
+	 * Insert or update a row with specified data.
+	 *
+	 * @param array $fields Column-value pairs.
+	 * @param array $bind Column-value pairs.
+	 * @return int The number of affected rows.
+	 */
+	public function change(array $fields, array $bind = []) {
+		$columns = array_keys($fields);
+		$columns = '`' . implode('`,`', $columns) . '`';
+		$values = array_values($fields);
+		$v = array_fill(0, count($fields), '?');
+		$v = implode(',', $v);
+
+		$ignore = '';
+		$action = '';
+		$cache  = [];
+
+		if (empty($bind)) {
+			$ignore = 'IGNORE';
+		} else {
+			$s = array_map(function($k) use(&$bind) {
+				if ($bind[$k] instanceof Expr) {
+					$v = $bind[$k]->__toString();
+					unset($bind[$k]);
+					return '`' . implode('`.`', explode('.', $k)) . '` = ' . $v;
+				} else {
+					return '`' . implode('`.`', explode('.', $k)) . '` = ?';
+				}
+			}, array_keys($bind));
+			$set = implode(',', $s);
+			$action = "ON DUPLICATE KEY UPDATE $set";
+			$cache = ['retrieve'];
+		}
+
+		$sql = new Sql("INSERT $ignore INTO $this->table ($columns) VALUES ($v) $action", array_merge($values, array_values($bind)));
+		$res = $this->execute($sql);
+
+		// Clear all cache
+		$this->clearCache($cache);
+
+		return $res;
+	}
+
+	/**
+	 * Return row count.
+	 *
+	 * @param mixed $where array or string.
+	 * @return int
+	 */
+	public function count($where = null) {
+		$parameters['SELECT'] = 'count(*)';
+		$parameters['FROM']   = $this->table;
+		$parameters['WHERE']  = $where;
+		$sql = new Select($parameters);
+		$res = $this->queryOne($sql);
+		return $res[0];
+	}
+
+	/**
+	 * Return columns informations.
+	 *
+	 * @return array
+	 */
+	public function getColumns() {
+		return $this->queryAll("SHOW FULL COLUMNS FROM $this->table");
+	}
+
+	public function lastInsertId($name = null) {
+		return $this->getPdo()->lastInsertId($name);
+	}
+
+	protected function getCacheKey($label, $parameter = null) {
+		if (is_array($parameter)) {
+			ksort($parameter);
+			$parameter = md5(json_encode($parameter));
+		}
+		return $label . (is_null($parameter) ? '' : '/' . $parameter);
+	}
+
+	protected function getCache($key) {
+		if (is_null($this->cache)) return;
+		return $this->cache->get('db/' . $this->table . '/' . $key);
+	}
+
+	protected function setCache($key, $value) {
+		if (is_null($this->cache)) return;
+		return $this->cache->set('db/' . $this->table . '/' . $key, $value);
+	}
+
+	public function clearCache(array $keys = []) {
+		if (is_null($this->cache)) return;
+		$this->cache->delete('db/' . $this->table . '/retrieveAll');
+		foreach ($keys as $key) {
+			$this->cache->delete('db/' . $this->table . '/' . $key);
+		}
+	}
+
+	public function clearRowCache(array $pk) {
+		$this->clearCache([$this->getCacheKey('retrieve', $pk)]);
+	}
+
+}
