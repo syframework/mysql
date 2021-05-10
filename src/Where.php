@@ -6,8 +6,8 @@ namespace Sy\Db\MySql;
  * string: "foo = 'bar'" return "foo = 'bar'"
  * array: same as string just implode with AND
  * assoc array: ['t.k1' => 'v1', 't.k2' => 'v2'] return "`t`.`k1` = ? AND `t`.`k2` = ?"
- * - null value: ['c' => null] return "c IS NULL"
- * - array value: ['c' => ['one', 'two', 'three'] return "c IN (?,?,?)"
+ * - null value: ['c' => null] return "`c` IS NULL"
+ * - array value: ['c' => ['one', 'two', 'three']] return "`c` IN (?,?,?)"
  * - assoc array value: ['c' => ['LIKE' => "'foo%'"]] return "`c` LIKE 'foo%'"
  * - empty array: ['c' => []] return "1"
  */
@@ -34,8 +34,8 @@ class Where {
 	private function init() {
 		$where = $this->where;
 		if (is_array($where)) {
-			if (array_values($where) !== $where) { // is assoc
-				$w = array_map(function($k) use($where) {
+			$w = array_map(function($k) use($where) {
+				if (is_string($k)) {
 					if (is_null($where[$k])) {
 						return $this->formatKey($k) . " IS NULL";
 					} elseif (is_array($where[$k])) {
@@ -43,11 +43,11 @@ class Where {
 					}
 					$this->params[] = $where[$k];
 					return $this->formatKey($k) . " = ?";
-				}, array_keys($where));
-				$where = implode(' AND ', $w);
-			} else {
-				$where = implode(' AND ', $where);
-			}
+				} else {
+					return $where[$k];
+				}
+			}, array_keys($where));
+			$where = implode(' AND ', $w);
 		}
 		$this->where = $where;
 	}
