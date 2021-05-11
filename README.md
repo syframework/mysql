@@ -25,9 +25,10 @@ password = my_password
 <?php
 
 use Sy\Db\MySql\Crud;
+use Sy\Db\MySql\Gate;
 
 $crud = new Crud('t_user');
-$crud->setConfig(parse_ini_file('my_setting.ini'));
+$crud->setDbGate(new Gate(parse_ini_file('my_setting.ini')));
 
 // Create
 $crud->create(['firstanme' => 'John', 'lastname' => 'Doe']);
