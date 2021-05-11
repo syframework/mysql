@@ -316,6 +316,24 @@ class Crud {
 		return $this->db->getPdo()->lastInsertId($name);
 	}
 
+	/**
+	 * Run a function as a transaction
+	 *
+	 * @param callable $fn
+	 * @return void
+	 * @throws Exception
+	 */
+	public function transaction($fn) {
+		try {
+			$this->db->beginTransaction();
+			call_user_func($fn);
+			$this->db->commit();
+		} catch(\Exception $e) {
+			$this->db->rollBack();
+			throw $e;
+		}
+	}
+
 	protected function getCacheKey($label, $parameter = null) {
 		if (is_array($parameter)) {
 			ksort($parameter);
