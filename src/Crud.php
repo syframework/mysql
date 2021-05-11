@@ -34,19 +34,41 @@ class Crud {
 	}
 
 	/**
+	 * Set database connection settings
+	 * 
+	 * Example:
+	 * 
+	 * $config = [
+	 *     'host' => 'localhost',
+	 *     'port' => '3306',
+	 *     'dbname' => 'database_name',
+	 *     'unix_socket' => '/tmp/mysql.sock', // should not be used with host/port
+	 *     'charset' => 'utf8',
+	 *     'username' => 'username',
+	 *     'password' => 'password',
+	 *     'options' => [
+	 *         \PDO::MYSQL_ATTR_LOCAL_INFILE => true
+	 *     ]
+	 * ];
+	 *
+	 * @param array $config
+	 * @throws ConfigException
+	 * @return void
+	 */
+	public function setConfig(array $config) {
+		if (is_null($this->db)) {
+			$this->db = new Gate($config);
+		} else {
+			$this->db->setConfig($config);
+		}
+	}
+
+	/**
 	 * @param CacheInterface $cache
 	 * @return void
 	 */
 	public function setCacheEngine($cache) {
 		$this->cache = $cache;
-	}
-
-	/**
-	 * @param Gate $dbGate
-	 * @return void
-	 */
-	public function setDbGate(Gate $dbGate) {
-		$this->db = $dbGate;
 	}
 
 	/**
