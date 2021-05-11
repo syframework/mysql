@@ -29,7 +29,7 @@ class Gate extends \Sy\Db\Gate {
 	 *     'options' => [
 	 *         \PDO::MYSQL_ATTR_LOCAL_INFILE => true
 	 *     ]
-	 * ]
+	 * ];
 	 *
 	 * @param array $config
 	 * @throws ConfigException

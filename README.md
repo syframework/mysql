@@ -26,7 +26,24 @@ password = my_password
 
 use Sy\Db\MySql\Crud;
 
-$crud = new Crud('t_user');
+$crud = new Crud('user');
 $crud->setConfig(parse_ini_file('my_setting.ini'));
+
+// Create
+$crud->create(['firstanme' => 'John', 'lastname' => 'Doe']);
+$crud->createMany([
+	['firstanme' => 'John', 'lastname' => 'Doe'],
+	['firstanme' => 'John', 'lastname' => 'Wick'],
+]);
+
+// Retrieve
 $user = $crud->retrieve(['id' => 3]);
+$users = $crud->retrieveAll(['LIMIT' => 10]);
+$users = $crud->retrieveAll(['LIMIT' => 10, 'OFFSET' => 10]);
+
+// Update
+$crud->update(['id' => 3], ['firstname' => 'Jane']);
+
+// Delete
+$crud->delete(['id' => 3]);
 ```

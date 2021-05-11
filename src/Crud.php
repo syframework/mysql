@@ -6,7 +6,7 @@ use Sy\Db\Sql;
 use Sy\Db\MySql\Select;
 use Sy\Db\MySql\Where;
 
-class Crud extends Gate {
+class Crud {
 
 	private $table;
 
@@ -18,14 +18,49 @@ class Crud extends Gate {
 	private $cache;
 
 	/**
+	 * @var Gate Database gateway
+	 */
+	protected $db;
+
+	/**
 	 * @param string $table
 	 * @param array $pk Optionnal primary key
 	 */
 	public function __construct($table, $pk = []) {
-		parent::__construct();
 		$this->table = $table;
-		$this->pk = $pk;
+		$this->pk    = $pk;
 		$this->cache = null;
+		$this->db    = null;
+	}
+
+	/**
+	 * Set database connection settings
+	 * 
+	 * Example:
+	 * 
+	 * $config = [
+	 *     'host' => 'localhost',
+	 *     'port' => '3306',
+	 *     'dbname' => 'database_name',
+	 *     'unix_socket' => '/tmp/mysql.sock', // should not be used with host/port
+	 *     'charset' => 'utf8',
+	 *     'username' => 'username',
+	 *     'password' => 'password',
+	 *     'options' => [
+	 *         \PDO::MYSQL_ATTR_LOCAL_INFILE => true
+	 *     ]
+	 * ];
+	 *
+	 * @param array $config
+	 * @throws ConfigException
+	 * @return void
+	 */
+	public function setConfig(array $config) {
+		if (is_null($this->db)) {
+			$this->db = new Gate($config);
+		} else {
+			$this->db->setConfig($config);
+		}
 	}
 
 	/**
@@ -43,7 +78,7 @@ class Crud extends Gate {
 	 * @return int The number of affected rows.
 	 */
 	public function create(array $fields) {
-		$res = $this->insert($this->table, $fields);
+		$res = $this->db->insert($this->table, $fields);
 
 		// Clear cache
 		$this->clearCache();
@@ -58,7 +93,7 @@ class Crud extends Gate {
 	 * @return int The number of affected rows.
 	 */
 	public function createMany(array $data) {
-		$res = $this->insertMany($this->table, $data);
+		$res = $this->db->insertMany($this->table, $data);
 
 		// Clear cache
 		$this->clearCache();
@@ -79,7 +114,7 @@ class Crud extends Gate {
 		if (!empty($res)) return $res;
 
 		// Cache miss
-		$res = $this->queryOne(new Select([
+		$res = $this->db->queryOne(new Select([
 			'FROM'  => $this->table,
 			'WHERE' => $pk,
 		]), \PDO::FETCH_ASSOC);
@@ -112,7 +147,7 @@ class Crud extends Gate {
 
 		// Cache miss
 		$parameters['FROM'] = $this->table;
-		$res = $this->queryAll(new Select($parameters), \PDO::FETCH_ASSOC);
+		$res = $this->db->queryAll(new Select($parameters), \PDO::FETCH_ASSOC);
 		$this->setCache($key, $res);
 		return $res;
 	}
@@ -125,7 +160,7 @@ class Crud extends Gate {
 	 */
 	public function retrieveStatement(array $parameters = []) {
 		$parameters['FROM'] = $this->table;
-		$res = $this->query(new Select($parameters));
+		$res = $this->db->query(new Select($parameters));
 		return $res;
 	}
 
@@ -158,7 +193,7 @@ class Crud extends Gate {
 			SET $set
 			WHERE $where
 		", array_merge(array_values($bind), $where->getParams()));
-		$res = $this->execute($sql);
+		$res = $this->db->execute($sql);
 
 		// If $pk is not the real primary key, just unique key for example
 		if (!empty($this->pk) and $this->pk != array_keys($pk)) {
@@ -185,7 +220,7 @@ class Crud extends Gate {
 	public function delete(array $pk) {
 		$where = new Where($pk);
 		$sql = new Sql("DELETE FROM $this->table WHERE $where", $where->getParams());
-		$res = $this->execute($sql);
+		$res = $this->db->execute($sql);
 
 		// If $pk is not the real primary key, just unique key for example
 		if (!empty($this->pk) and $this->pk != array_keys($pk)) {
@@ -239,7 +274,7 @@ class Crud extends Gate {
 		}
 
 		$sql = new Sql("INSERT $ignore INTO $this->table ($columns) VALUES ($v) $action", array_merge($values, array_values($bind)));
-		$res = $this->execute($sql);
+		$res = $this->db->execute($sql);
 
 		// Clear all cache
 		$this->clearCache($cache);
@@ -258,7 +293,7 @@ class Crud extends Gate {
 		$parameters['FROM']   = $this->table;
 		$parameters['WHERE']  = $where;
 		$sql = new Select($parameters);
-		$res = $this->queryOne($sql);
+		$res = $this->db->queryOne($sql);
 		return $res[0];
 	}
 
@@ -268,11 +303,17 @@ class Crud extends Gate {
 	 * @return array
 	 */
 	public function getColumns() {
-		return $this->queryAll("SHOW FULL COLUMNS FROM $this->table");
+		return $this->db->queryAll("SHOW FULL COLUMNS FROM $this->table");
 	}
 
+	/**
+	 * Returns the ID of the last inserted row or sequence value.
+	 *
+	 * @param string|null $name Name of the sequence object from which the ID should be returned.
+	 * @return string
+	 */
 	public function lastInsertId($name = null) {
-		return $this->getPdo()->lastInsertId($name);
+		return $this->db->getPdo()->lastInsertId($name);
 	}
 
 	protected function getCacheKey($label, $parameter = null) {
