@@ -127,6 +127,7 @@ class Crud {
 			}
 
 			$res = $this->retrieve($realpk);
+			$key = $this->getCacheKey('retrieve', $realpk); // Use the real primary key for the cache key
 		}
 
 		$this->setCache($key, $res);
