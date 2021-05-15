@@ -8,9 +8,10 @@ use Sy\Db\MySql\Where;
 
 class Crud {
 
+	/**
+	 * @var string
+	 */
 	private $table;
-
-	private $pk;
 
 	/**
 	 * @var CacheInterface
@@ -24,20 +25,18 @@ class Crud {
 
 	/**
 	 * @param string $table
-	 * @param array $pk Optionnal primary key
 	 */
-	public function __construct($table, $pk = []) {
+	public function __construct($table) {
 		$this->table = $table;
-		$this->pk    = $pk;
 		$this->cache = null;
 		$this->db    = null;
 	}
 
 	/**
 	 * Set database connection settings
-	 * 
+	 *
 	 * Example:
-	 * 
+	 *
 	 * $config = [
 	 *     'host' => 'localhost',
 	 *     'port' => '3306',
@@ -108,10 +107,14 @@ class Crud {
 	 * @return array
 	 */
 	public function retrieve(array $pk) {
+		$pk = array_map(fn($x) => strval($x), $pk);
+
 		// Cache hit
-		$key = $this->getCacheKey('retrieve', $pk);
-		$res = $this->getCache($key);
-		if (!empty($res)) return $res;
+		$hash = $this->getCache($this->getCacheKey('key', $pk));
+		if (!empty($key)) {
+			$res = $this->getCache($this->getCacheKey('retrieve', $hash));
+			if (!empty($res)) return $res;
+		}
 
 		// Cache miss
 		$res = $this->db->queryOne(new Select([
@@ -119,18 +122,8 @@ class Crud {
 			'WHERE' => $pk,
 		]), \PDO::FETCH_ASSOC);
 
-		// If $pk is not the real primary key, just unique key for example
-		if (!empty($res) and !empty($this->pk) and $this->pk != array_keys($pk)) {
-			$realpk = [];
-			foreach ($this->pk as $k) {
-				$realpk[$k] = $res[$k];
-			}
-
-			$res = $this->retrieve($realpk);
-			$key = $this->getCacheKey('retrieve', $realpk); // Use the real primary key for the cache key
-		}
-
-		$this->setCache($key, $res);
+		$this->setCache($this->getCacheKey('key', $pk), md5(json_encode($res)));
+		$this->setCache($this->getCacheKey('retrieve', md5(json_encode($res))), $res);
 		return $res;
 	}
 
@@ -173,6 +166,9 @@ class Crud {
 	 * @return int The number of affected rows.
 	 */
 	public function update(array $pk, array $bind) {
+		$pk = array_map(fn($x) => strval($x), $pk);
+		$row = $this->retrieve($pk);
+
 		$where = new Where($pk);
 		if (array_values($bind) !== $bind) { // is assoc
 			$s = array_map(function($k) use(&$bind) {
@@ -196,18 +192,8 @@ class Crud {
 		", array_merge(array_values($bind), $where->getParams()));
 		$res = $this->db->execute($sql);
 
-		// If $pk is not the real primary key, just unique key for example
-		if (!empty($this->pk) and $this->pk != array_keys($pk)) {
-			$res = $this->retrieve($pk);
-			$realpk = [];
-			foreach ($this->pk as $k) {
-				$realpk[$k] = $res[$k];
-			}
-			$this->clearRowCache($realpk);
-		}
-
 		// Clear cache
-		$this->clearRowCache($pk);
+		$this->clearRowCache($row);
 
 		return $res;
 	}
@@ -219,22 +205,15 @@ class Crud {
 	 * @return int The number of affected rows.
 	 */
 	public function delete(array $pk) {
+		$pk = array_map(fn($x) => strval($x), $pk);
+		$row = $this->retrieve($pk);
+
 		$where = new Where($pk);
 		$sql = new Sql("DELETE FROM $this->table WHERE $where", $where->getParams());
 		$res = $this->db->execute($sql);
 
-		// If $pk is not the real primary key, just unique key for example
-		if (!empty($this->pk) and $this->pk != array_keys($pk)) {
-			$res = $this->retrieve($pk);
-			$realpk = [];
-			foreach ($this->pk as $k) {
-				$realpk[$k] = $res[$k];
-			}
-			$this->clearRowCache($realpk);
-		}
-
 		// Clear cache
-		$this->clearRowCache($pk);
+		$this->clearRowCache($row);
 
 		return $res;
 	}
@@ -361,8 +340,8 @@ class Crud {
 		}
 	}
 
-	public function clearRowCache(array $pk) {
-		$this->clearCache([$this->getCacheKey('retrieve', $pk)]);
+	public function clearRowCache(array $row) {
+		$this->clearCache([$this->getCacheKey('retrieve', md5(json_encode($row)))]);
 	}
 
 }
