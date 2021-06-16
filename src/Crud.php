@@ -213,7 +213,7 @@ class Crud {
 		$res = $this->db->execute($sql);
 
 		// Clear cache
-		$this->clearRowCache($row);
+		if ($row) $this->clearRowCache($row);
 
 		return $res;
 	}
