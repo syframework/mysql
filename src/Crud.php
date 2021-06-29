@@ -306,7 +306,7 @@ class Crud {
 	public function transaction($fn) {
 		try {
 			$this->db->beginTransaction();
-			call_user_func($fn);
+			return call_user_func($fn);
 			$this->db->commit();
 		} catch(\Exception $e) {
 			$this->db->rollBack();
