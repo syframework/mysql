@@ -300,14 +300,15 @@ class Crud {
 	 * Run a function as a transaction
 	 *
 	 * @param callable $fn
-	 * @return void
+	 * @return mixed
 	 * @throws Exception
 	 */
 	public function transaction($fn) {
 		try {
 			$this->db->beginTransaction();
-			return call_user_func($fn);
+			$res = call_user_func($fn);
 			$this->db->commit();
+			return $res;
 		} catch(\Exception $e) {
 			$this->db->rollBack();
 			throw $e;
