@@ -121,6 +121,7 @@ class Crud {
 			'FROM'  => $this->table,
 			'WHERE' => $pk,
 		]), \PDO::FETCH_ASSOC);
+		if ($res === false) return [];
 
 		$this->setCache($this->getCacheKey('key', $pk), md5(json_encode($res)));
 		$this->setCache($this->getCacheKey('retrieve', md5(json_encode($res))), $res);
@@ -131,7 +132,7 @@ class Crud {
 	 * Return all rows.
 	 *
 	 * @param array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
-	 * @return \PDOStatement
+	 * @return array
 	 */
 	public function retrieveAll(array $parameters = []) {
 		// Cache hit
