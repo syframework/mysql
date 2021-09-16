@@ -342,7 +342,7 @@ class Crud {
 		}
 	}
 
-	public function clearRowCache(array $row) {
+	public function clearRowCache($row) {
 		$this->clearCache([$this->getCacheKey('retrieve', md5(json_encode($row)))]);
 	}
 
