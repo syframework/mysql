@@ -111,7 +111,7 @@ class Crud {
 
 		// Cache hit
 		$hash = $this->getCache($this->getCacheKey('key', $pk));
-		if (!empty($key)) {
+		if (!empty($hash)) {
 			$res = $this->getCache($this->getCacheKey('retrieve', $hash));
 			if (!empty($res)) return $res;
 		}
