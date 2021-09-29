@@ -107,25 +107,10 @@ class Crud {
 	 * @return array
 	 */
 	public function retrieve(array $pk) {
-		$pk = array_map(fn($x) => strval($x), $pk);
-
-		// Cache hit
-		$hash = $this->getCache($this->getCacheKey('key', $pk));
-		if (!empty($hash)) {
-			$res = $this->getCache($this->getCacheKey('retrieve', $hash));
-			if (!empty($res)) return $res;
-		}
-
-		// Cache miss
-		$res = $this->db->queryOne(new Select([
+		return $this->executeRetrieve($pk, new Select([
 			'FROM'  => $this->table,
 			'WHERE' => $pk,
-		]), \PDO::FETCH_ASSOC);
-		if ($res === false) return [];
-
-		$this->setCache($this->getCacheKey('key', $pk), md5(json_encode($res)));
-		$this->setCache($this->getCacheKey('retrieve', md5(json_encode($res))), $res);
-		return $res;
+		]));
 	}
 
 	/**
@@ -314,6 +299,54 @@ class Crud {
 			$this->db->rollBack();
 			throw $e;
 		}
+	}
+
+	/**
+	 * Retrieve one row using the sql query in parameter
+	 * Will use the cache engine
+	 *
+	 * @param array $pk
+	 * @param Sql $sql
+	 * @return array
+	 */
+	protected function executeRetrieve(array $pk, Sql $sql) {
+		$pk = array_map(fn($x) => strval($x), $pk);
+
+		// Cache hit
+		$hash = $this->getCache($this->getCacheKey('key', $pk));
+		if (!empty($hash)) {
+			$res = $this->getCache($this->getCacheKey('retrieve', $hash));
+			if (!empty($res)) return $res;
+		}
+
+		// Cache miss
+		$res = $this->db->queryOne($sql, \PDO::FETCH_ASSOC);
+		if ($res === false) return [];
+
+		$this->setCache($this->getCacheKey('key', $pk), md5(json_encode($res)));
+		$this->setCache($this->getCacheKey('retrieve', md5(json_encode($res))), $res);
+		return $res;
+	}
+
+	/**
+	 * Retrieve rows using the sql query in parameter
+	 * Will use the cache engine
+	 *
+	 * @param array $parameters
+	 * @param Sql $sql
+	 * @return array
+	 */
+	protected function executeRetrieveAll(array $parameters, Sql $sql) {
+		// Cache hit
+		$key = $this->getCacheKey('retrieveAll', $parameters);
+		$res = $this->getCache($key);
+		if (!empty($res)) return $res;
+
+		// Cache miss
+		$parameters['FROM'] = $this->table;
+		$res = $this->db->queryAll($sql, \PDO::FETCH_ASSOC);
+		$this->setCache($key, $res);
+		return $res;
 	}
 
 	protected function getCacheKey($label, $parameter = null) {
