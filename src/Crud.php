@@ -74,15 +74,15 @@ class Crud {
 	 * Add a row with specified data.
 	 *
 	 * @param array $fields Column-value pairs.
-	 * @return int The number of affected rows.
+	 * @return int The last inserted id.
 	 */
 	public function create(array $fields) {
-		$res = $this->db->insert($this->table, $fields);
+		$this->db->insert($this->table, $fields);
 
 		// Clear cache
 		$this->clearCache();
 
-		return $res;
+		return $this->lastInsertId();
 	}
 
 	/**
