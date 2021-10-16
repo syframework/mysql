@@ -75,14 +75,16 @@ class Crud {
 	 *
 	 * @param array $fields Column-value pairs.
 	 * @return int The last inserted id.
+	 * @throws Exception
 	 */
 	public function create(array $fields) {
-		$this->db->insert($this->table, $fields);
-
-		// Clear cache
-		$this->clearCache();
-
-		return $this->lastInsertId();
+		try {
+			$this->db->insert($this->table, $fields);
+			$this->clearCache();
+			return $this->lastInsertId();
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
@@ -90,14 +92,16 @@ class Crud {
 	 *
 	 * @param array $data array of array column-value pairs.
 	 * @return int The number of affected rows.
+	 * @throws Exception
 	 */
 	public function createMany(array $data) {
-		$res = $this->db->insertMany($this->table, $data);
-
-		// Clear cache
-		$this->clearCache();
-
-		return $res;
+		try {
+			$res = $this->db->insertMany($this->table, $data);
+			$this->clearCache();
+			return $res;
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
@@ -105,12 +109,17 @@ class Crud {
 	 *
 	 * @param array $pk Column-value pairs.
 	 * @return array
+	 * @throws Exception
 	 */
 	public function retrieve(array $pk) {
-		return $this->executeRetrieve($pk, new Select([
-			'FROM'  => $this->table,
-			'WHERE' => $pk,
-		]));
+		try {
+			return $this->executeRetrieve($pk, new Select([
+				'FROM'  => $this->table,
+				'WHERE' => $pk,
+			]));
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
@@ -118,18 +127,23 @@ class Crud {
 	 *
 	 * @param array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
 	 * @return array
+	 * @throws Exception
 	 */
 	public function retrieveAll(array $parameters = []) {
-		// Cache hit
-		$key = $this->getCacheKey('retrieveAll', $parameters);
-		$res = $this->getCache($key);
-		if (!empty($res)) return $res;
+		try {
+			// Cache hit
+			$key = $this->getCacheKey('retrieveAll', $parameters);
+			$res = $this->getCache($key);
+			if (!empty($res)) return $res;
 
-		// Cache miss
-		$parameters['FROM'] = $this->table;
-		$res = $this->db->queryAll(new Select($parameters), \PDO::FETCH_ASSOC);
-		$this->setCache($key, $res);
-		return $res;
+			// Cache miss
+			$parameters['FROM'] = $this->table;
+			$res = $this->db->queryAll(new Select($parameters), \PDO::FETCH_ASSOC);
+			$this->setCache($key, $res);
+			return $res;
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
@@ -137,11 +151,16 @@ class Crud {
 	 *
 	 * @param array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
 	 * @return \PDOStatement
+	 * @throws Exception
 	 */
 	public function retrieveStatement(array $parameters = []) {
-		$parameters['FROM'] = $this->table;
-		$res = $this->db->query(new Select($parameters));
-		return $res;
+		try {
+			$parameters['FROM'] = $this->table;
+			$res = $this->db->query(new Select($parameters));
+			return $res;
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
@@ -150,38 +169,43 @@ class Crud {
 	 * @param array $pk Column-value pairs.
 	 * @param array $bind Column-value pairs or array of string
 	 * @return int The number of affected rows.
+	 * @throws Exception
 	 */
 	public function update(array $pk, array $bind) {
-		$pk = array_map(fn($x) => strval($x), $pk);
-		$row = $this->retrieve($pk);
+		try {
+			$pk = array_map(fn($x) => strval($x), $pk);
+			$row = $this->retrieve($pk);
 
-		$where = new Where($pk);
-		if (array_values($bind) !== $bind) { // is assoc
-			$s = array_map(function($k) use(&$bind) {
-				if ($bind[$k] instanceof Expr) {
-					$v = $bind[$k]->__toString();
-					unset($bind[$k]);
-					return '`' . implode('`.`', explode('.', $k)) . '` = ' . $v;
-				} else {
-					return '`' . implode('`.`', explode('.', $k)) . '` = ?';
-				}
-			}, array_keys($bind));
-			$set = implode(',', $s);
-		} else {
-			$set = implode(',', $bind);
-			$bind = [];
+			$where = new Where($pk);
+			if (array_values($bind) !== $bind) { // is assoc
+				$s = array_map(function($k) use(&$bind) {
+					if ($bind[$k] instanceof Expr) {
+						$v = $bind[$k]->__toString();
+						unset($bind[$k]);
+						return '`' . implode('`.`', explode('.', $k)) . '` = ' . $v;
+					} else {
+						return '`' . implode('`.`', explode('.', $k)) . '` = ?';
+					}
+				}, array_keys($bind));
+				$set = implode(',', $s);
+			} else {
+				$set = implode(',', $bind);
+				$bind = [];
+			}
+			$sql = new Sql("
+				UPDATE $this->table
+				SET $set
+				WHERE $where
+			", array_merge(array_values($bind), $where->getParams()));
+			$res = $this->db->execute($sql);
+
+			// Clear cache
+			$this->clearRowCache($row);
+
+			return $res;
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
 		}
-		$sql = new Sql("
-			UPDATE $this->table
-			SET $set
-			WHERE $where
-		", array_merge(array_values($bind), $where->getParams()));
-		$res = $this->db->execute($sql);
-
-		// Clear cache
-		$this->clearRowCache($row);
-
-		return $res;
 	}
 
 	/**
@@ -189,19 +213,24 @@ class Crud {
 	 *
 	 * @param array $pk Column-value pairs.
 	 * @return int The number of affected rows.
+	 * @throws Exception
 	 */
 	public function delete(array $pk) {
-		$pk = array_map(fn($x) => strval($x), $pk);
-		$row = $this->retrieve($pk);
+		try {
+			$pk = array_map(fn($x) => strval($x), $pk);
+			$row = $this->retrieve($pk);
 
-		$where = new Where($pk);
-		$sql = new Sql("DELETE FROM $this->table WHERE $where", $where->getParams());
-		$res = $this->db->execute($sql);
+			$where = new Where($pk);
+			$sql = new Sql("DELETE FROM $this->table WHERE $where", $where->getParams());
+			$res = $this->db->execute($sql);
 
-		// Clear cache
-		if ($row) $this->clearRowCache($row);
+			// Clear cache
+			if ($row) $this->clearRowCache($row);
 
-		return $res;
+			return $res;
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
@@ -210,42 +239,47 @@ class Crud {
 	 * @param array $fields Column-value pairs.
 	 * @param array $bind Column-value pairs.
 	 * @return int The number of affected rows.
+	 * @throws Exception
 	 */
 	public function change(array $fields, array $bind = []) {
-		$columns = array_keys($fields);
-		$columns = '`' . implode('`,`', $columns) . '`';
-		$values = array_values($fields);
-		$v = array_fill(0, count($fields), '?');
-		$v = implode(',', $v);
+		try {
+			$columns = array_keys($fields);
+			$columns = '`' . implode('`,`', $columns) . '`';
+			$values = array_values($fields);
+			$v = array_fill(0, count($fields), '?');
+			$v = implode(',', $v);
 
-		$ignore = '';
-		$action = '';
-		$cache  = [];
+			$ignore = '';
+			$action = '';
+			$cache  = [];
 
-		if (empty($bind)) {
-			$ignore = 'IGNORE';
-		} else {
-			$s = array_map(function($k) use(&$bind) {
-				if ($bind[$k] instanceof Expr) {
-					$v = $bind[$k]->__toString();
-					unset($bind[$k]);
-					return '`' . implode('`.`', explode('.', $k)) . '` = ' . $v;
-				} else {
-					return '`' . implode('`.`', explode('.', $k)) . '` = ?';
-				}
-			}, array_keys($bind));
-			$set = implode(',', $s);
-			$action = "ON DUPLICATE KEY UPDATE $set";
-			$cache = ['retrieve'];
+			if (empty($bind)) {
+				$ignore = 'IGNORE';
+			} else {
+				$s = array_map(function($k) use(&$bind) {
+					if ($bind[$k] instanceof Expr) {
+						$v = $bind[$k]->__toString();
+						unset($bind[$k]);
+						return '`' . implode('`.`', explode('.', $k)) . '` = ' . $v;
+					} else {
+						return '`' . implode('`.`', explode('.', $k)) . '` = ?';
+					}
+				}, array_keys($bind));
+				$set = implode(',', $s);
+				$action = "ON DUPLICATE KEY UPDATE $set";
+				$cache = ['retrieve'];
+			}
+
+			$sql = new Sql("INSERT $ignore INTO $this->table ($columns) VALUES ($v) $action", array_merge($values, array_values($bind)));
+			$res = $this->db->execute($sql);
+
+			// Clear all cache
+			$this->clearCache($cache);
+
+			return $res;
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
 		}
-
-		$sql = new Sql("INSERT $ignore INTO $this->table ($columns) VALUES ($v) $action", array_merge($values, array_values($bind)));
-		$res = $this->db->execute($sql);
-
-		// Clear all cache
-		$this->clearCache($cache);
-
-		return $res;
 	}
 
 	/**
@@ -253,23 +287,33 @@ class Crud {
 	 *
 	 * @param mixed $where array or string.
 	 * @return int
+	 * @throws Exception
 	 */
 	public function count($where = null) {
-		$parameters['SELECT'] = 'count(*)';
-		$parameters['FROM']   = $this->table;
-		$parameters['WHERE']  = $where;
-		$sql = new Select($parameters);
-		$res = $this->db->queryOne($sql);
-		return $res[0];
+		try {
+			$parameters['SELECT'] = 'count(*)';
+			$parameters['FROM']   = $this->table;
+			$parameters['WHERE']  = $where;
+			$sql = new Select($parameters);
+			$res = $this->db->queryOne($sql);
+			return $res[0];
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
 	 * Return columns informations.
 	 *
 	 * @return array
+	 * @throws Exception
 	 */
 	public function getColumns() {
-		return $this->db->queryAll("SHOW FULL COLUMNS FROM $this->table");
+		try {
+			return $this->db->queryAll("SHOW FULL COLUMNS FROM $this->table");
+		} catch (\Sy\Db\Exception $e) {
+			$this->handleException($e);
+		}
 	}
 
 	/**
@@ -287,7 +331,7 @@ class Crud {
 	 *
 	 * @param callable $fn
 	 * @return mixed
-	 * @throws Exception
+	 * @throws \Exception
 	 */
 	public function transaction($fn) {
 		try {
@@ -299,6 +343,18 @@ class Crud {
 			$this->db->rollBack();
 			throw $e;
 		}
+	}
+
+	public function clearCache(array $keys = []) {
+		if (is_null($this->cache)) return;
+		$this->cache->delete('db/' . $this->table . '/retrieveAll');
+		foreach ($keys as $key) {
+			$this->cache->delete('db/' . $this->table . '/' . $key);
+		}
+	}
+
+	public function clearRowCache($row) {
+		$this->clearCache([$this->getCacheKey('retrieve', md5(json_encode($row)))]);
 	}
 
 	/**
@@ -367,16 +423,15 @@ class Crud {
 		return $this->cache->set('db/' . $this->table . '/' . $key, $value);
 	}
 
-	public function clearCache(array $keys = []) {
-		if (is_null($this->cache)) return;
-		$this->cache->delete('db/' . $this->table . '/retrieveAll');
-		foreach ($keys as $key) {
-			$this->cache->delete('db/' . $this->table . '/' . $key);
-		}
-	}
+	private function handleException(\Sy\Db\Exception $e) {
+		switch ($e->getCode()) {
+			case 1062:
+				throw new DuplicateEntryException($e->getMessage(), $e->getCode(), $e);
 
-	public function clearRowCache($row) {
-		$this->clearCache([$this->getCacheKey('retrieve', md5(json_encode($row)))]);
+			default:
+				throw new Exception($e->getMessage(), $e->getCode(), $e);
+		}
+
 	}
 
 }

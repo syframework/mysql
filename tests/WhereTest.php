@@ -27,6 +27,10 @@ class WhereTest extends TestCase {
 		$where = new Where(['c' => null]);
 		$this->assertEquals("`c` IS NULL", $where->__toString());
 		$this->assertEquals([], $where->getParams());
+
+		$where = new Where(['a' => 'b', 'c' => null]);
+		$this->assertEquals("`a` = ? AND `c` IS NULL", $where->__toString());
+		$this->assertEquals(['b'], $where->getParams());
 	}
 
 	public function testAssocArrayParamArrayValue() {
