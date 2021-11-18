@@ -173,7 +173,7 @@ class Crud {
 	 */
 	public function update(array $pk, array $bind) {
 		try {
-			$pk = array_map(fn($x) => strval($x), $pk);
+			$pk = array_map(fn($x) => is_null($x) ? $x : strval($x), $pk);
 			$row = $this->retrieve($pk);
 
 			$where = new Where($pk);
@@ -217,7 +217,7 @@ class Crud {
 	 */
 	public function delete(array $pk) {
 		try {
-			$pk = array_map(fn($x) => strval($x), $pk);
+			$pk = array_map(fn($x) => is_null($x) ? $x : strval($x), $pk);
 			$row = $this->retrieve($pk);
 
 			$where = new Where($pk);
@@ -366,7 +366,7 @@ class Crud {
 	 * @return array
 	 */
 	protected function executeRetrieve(array $pk, Sql $sql) {
-		$pk = array_map(fn($x) => strval($x), $pk);
+		$pk = array_map(fn($x) => is_null($x) ? $x : strval($x), $pk);
 
 		// Cache hit
 		$hash = $this->getCache($this->getCacheKey('key', $pk));
