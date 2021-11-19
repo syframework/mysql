@@ -53,7 +53,7 @@ class Where {
 	}
 
 	private function formatKey($k) {
-		return '`' . implode('`.`', explode('.', $k)) . '`';
+		return '`' . implode('`.`', array_map(function($x) { return trim($x, "\"'`"); }, explode('.', $k))) . '`';
 	}
 
 	private function formatArray($k, array $v) {

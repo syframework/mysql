@@ -65,4 +65,10 @@ class WhereTest extends TestCase {
 		$this->assertEquals(['v1', 'v2', 'one', 'two', 'three'], $where->getParams());
 	}
 
+	public function testFormatKey() {
+		$where = new Where(["'t'.'k1'" => 'v1', '"t"."k2"' => 'v2', '`t`.`k3`' => 'v3']);
+		$this->assertEquals("`t`.`k1` = ? AND `t`.`k2` = ? AND `t`.`k3` = ?", $where->__toString());
+		$this->assertEquals(['v1', 'v2', 'v3'], $where->getParams());
+	}
+
 }
