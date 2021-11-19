@@ -97,7 +97,7 @@ class Select extends \Sy\Db\Sql {
 	}
 
 	private function formatKey($k) {
-		return '`' . implode('`.`', explode('.', $k)) . '`';
+		return '`' . implode('`.`', array_map(function($x) { return trim($x, "\"'`"); }, explode('.', $k))) . '`';
 	}
 
 }
