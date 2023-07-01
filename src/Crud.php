@@ -428,7 +428,7 @@ class Crud {
 		return $this->cache->set('db/' . $this->table . '/' . $key, $value);
 	}
 
-	private function handleException(\Sy\Db\Exception $e) {
+	protected function handleException(\Sy\Db\Exception $e) {
 		switch ($e->getCode()) {
 			case 1062:
 				throw new DuplicateEntryException($e->getMessage(), $e->getCode(), $e);
