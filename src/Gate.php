@@ -1,8 +1,8 @@
 <?php
 namespace Sy\Db\MySql;
 
-use \Sy\Db\PDOManager;
-use \Sy\Db\Sql;
+use Sy\Db\PDOManager;
+use Sy\Db\Sql;
 
 class Gate extends \Sy\Db\Gate {
 
@@ -15,9 +15,9 @@ class Gate extends \Sy\Db\Gate {
 
 	/**
 	 * Set database connection settings
-	 * 
+	 *
 	 * Example:
-	 * 
+	 *
 	 * $config = [
 	 *     'host' => 'localhost',
 	 *     'port' => '3306',
@@ -31,7 +31,7 @@ class Gate extends \Sy\Db\Gate {
 	 *     ]
 	 * ];
 	 *
-	 * @param array $config
+	 * @param  array $config
 	 * @throws ConfigException
 	 * @return void
 	 */
@@ -41,7 +41,7 @@ class Gate extends \Sy\Db\Gate {
 		$dsn = 'mysql:';
 
 		if (isset($config['host'])) {
-			$dsn .= 'host=' . $config['host'] . (isset($config['port']) ? ';port=' . $config['port'] : ''); 
+			$dsn .= 'host=' . $config['host'] . (isset($config['port']) ? ';port=' . $config['port'] : '');
 		} elseif (isset($config['unix_socket'])) {
 			$dsn .= 'unix_socket=' . $config['unix_socket'];
 		} else {
@@ -77,8 +77,8 @@ class Gate extends \Sy\Db\Gate {
 	 * Replace a table row with specified data.
 	 * Replace is a MySQL extension to the SQL stantard.
 	 *
-	 * @param string $table The table name.
-	 * @param array $bind Column-value pairs.
+	 * @param  string $table The table name.
+	 * @param  array $bind Column-value pairs.
 	 * @return int The number of affected rows.
 	 */
 	public function replace($table, array $bind) {
@@ -94,13 +94,13 @@ class Gate extends \Sy\Db\Gate {
 	/**
 	 * Execute MySQL command load data local in file
 	 *
-	 * @param string $file File to load full path
-	 * @param string $table Table name in which file must be loaded
-	 * @param int $ignore Number of line to ignore at the beginning of the file
-	 * @param string $fieldEnd Field must be terminated by this string
-	 * @param char $fieldEnclose Field must be enclosed by this character
-	 * @param string $lineStart Line must start with this string
-	 * @param string $lineEnd Line must end with this string
+	 * @param  string $file File to load full path
+	 * @param  string $table Table name in which file must be loaded
+	 * @param  int $ignore Number of line to ignore at the beginning of the file
+	 * @param  string $fieldEnd Field must be terminated by this string
+	 * @param  string $fieldEnclose Field must be enclosed by this character
+	 * @param  string $lineStart Line must start with this string
+	 * @param  string $lineEnd Line must end with this string
 	 * @return int Return execution status. See PHP exec function
 	 */
 	public function loadDataLocal($file, $table, $ignore = 0, $fieldEnd = ',', $fieldEnclose = '"', $lineStart = '', $lineEnd = '\n') {
@@ -126,10 +126,10 @@ class Gate extends \Sy\Db\Gate {
 	 * Execute MySQL command to output select query in a file
 	 * Be careful the field separator may cause output issue
 	 *
-	 * @param string $select SQL SELECT query
-	 * @param string $outfile Output file full path
-	 * @param string $fieldSeparator Field separator
-	 * @param string $columnNames Write column names in results
+	 * @param  string $select SQL SELECT query
+	 * @param  string $outfile Output file full path
+	 * @param  string $fieldSeparator Field separator
+	 * @param  string $columnNames Write column names in results
 	 * @return int Return execution status. See PHP exec function
 	 */
 	public function selectOutfile($select, $outfile, $fieldSeparator = ';', $columnNames = false) {
@@ -144,16 +144,17 @@ class Gate extends \Sy\Db\Gate {
 	/**
 	 * Insert multiple rows in a table with specified data.
 	 *
-	 * @param string $table The table name.
-	 * @param array $data array of array column-value pairs.
+	 * @param  string $table The table name.
+	 * @param  array $data array of array column-value pairs.
 	 * @return int The number of affected rows.
+	 * @throws Exception
 	 * @throws \Sy\Db\ExecuteException
 	 */
 	public function insertMany($table, array $data) {
 		$data = array_map(function($array) {
 			return array_filter($array, 'strlen');
 		}, $data);
-		if (empty($data)) throw new \Sy\Db\Exception('Insert data is empty');
+		if (empty($data)) throw new Exception('Insert data is empty');
 		$columns = '`' . implode('`,`', array_keys($data[0])) . '`';
 		$values = [];
 		array_walk_recursive($data, function($item) use (&$values) {
@@ -179,7 +180,7 @@ class Gate extends \Sy\Db\Gate {
 
 		$cmd = '';
 		if (isset($config['host'])) {
-			$cmd .= '-h ' . $config['host'] . (isset($config['port']) ? ' -P ' . $config['port'] : ''); 
+			$cmd .= '-h ' . $config['host'] . (isset($config['port']) ? ' -P ' . $config['port'] : '');
 		} elseif (isset($config['unix_socket'])) {
 			$cmd .= '-S ' . $config['unix_socket'];
 		} else {
@@ -194,5 +195,3 @@ class Gate extends \Sy\Db\Gate {
 	}
 
 }
-
-class ConfigException extends \Sy\Db\Exception {}

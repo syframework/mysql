@@ -9,7 +9,7 @@
 		"psr/simple-cache": "^1"
 	},
 	"require-dev": {
-		"phpunit/phpunit": "^9"
+		"phpunit/phpunit": "^10"
 	},
 	"license": "MIT",
 	"authors": [
@@ -22,5 +22,10 @@
 		"psr-4": {
 			"Sy\\Db\\MySql\\": "src/"
 		}
+	},
+	"scripts": {
+		"test": "phpunit --coverage-text --coverage-filter src tests",
+		"mysql-start": "sudo docker run --name sytest-mysql --rm -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=sytest -d -p 127.0.0.1:3333:3306 mysql:latest",
+		"mysql-stop": "sudo docker stop sytest-mysql"
 	}
 }

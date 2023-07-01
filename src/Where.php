@@ -13,13 +13,23 @@ namespace Sy\Db\MySql;
  */
 class Where {
 
+	/**
+	 * @var string|array
+	 */
 	private $where;
 
+	/**
+	 * @var array
+	 */
 	private $params;
 
-	public function __construct($where) {
+	/**
+	 * @param string|array $where
+	 * @param array $param
+	 */
+	public function __construct($where, array $param = []) {
 		$this->where = $where;
-		$this->params = [];
+		$this->params = $param;
 		$this->init();
 	}
 

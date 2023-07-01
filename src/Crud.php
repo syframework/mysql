@@ -9,6 +9,11 @@ use Sy\Db\MySql\Where;
 class Crud {
 
 	/**
+	 * @var Gate Database gateway
+	 */
+	protected $db;
+
+	/**
 	 * @var string
 	 */
 	private $table;
@@ -17,11 +22,6 @@ class Crud {
 	 * @var CacheInterface
 	 */
 	private $cache;
-
-	/**
-	 * @var Gate Database gateway
-	 */
-	protected $db;
 
 	/**
 	 * @param string $table
@@ -50,9 +50,8 @@ class Crud {
 	 *     ]
 	 * ];
 	 *
-	 * @param array $config
+	 * @param  array $config
 	 * @throws ConfigException
-	 * @return void
 	 */
 	public function setConfig(array $config) {
 		if (is_null($this->db)) {
@@ -64,17 +63,23 @@ class Crud {
 
 	/**
 	 * @param CacheInterface $cache
-	 * @return void
 	 */
 	public function setCacheEngine($cache) {
 		$this->cache = $cache;
 	}
 
 	/**
+	 * @param Gate $db
+	 */
+	public function setDb($db) {
+		$this->db = $db;
+	}
+
+	/**
 	 * Add a row with specified data.
 	 *
-	 * @param array $fields Column-value pairs.
-	 * @return int The last inserted id.
+	 * @param  array $fields Column-value pairs.
+	 * @return string|false The last inserted id.
 	 * @throws Exception
 	 */
 	public function create(array $fields) {
@@ -90,7 +95,7 @@ class Crud {
 	/**
 	 * Add multiple rows with specified data.
 	 *
-	 * @param array $data array of array column-value pairs.
+	 * @param  array $data array of array column-value pairs.
 	 * @return int The number of affected rows.
 	 * @throws Exception
 	 */
@@ -107,7 +112,7 @@ class Crud {
 	/**
 	 * Retrieve a row by primary key.
 	 *
-	 * @param array $pk Column-value pairs.
+	 * @param  array $pk Column-value pairs.
 	 * @return array
 	 * @throws Exception
 	 */
@@ -125,7 +130,7 @@ class Crud {
 	/**
 	 * Return all rows.
 	 *
-	 * @param array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
+	 * @param  array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
 	 * @return array
 	 * @throws Exception
 	 */
@@ -149,7 +154,7 @@ class Crud {
 	/**
 	 * Return a PDOStatement in order to do an iteration.
 	 *
-	 * @param array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
+	 * @param  array $parameters Select parameters like: FROM, WHERE, LIMIT, OFFSET...
 	 * @return \PDOStatement
 	 * @throws Exception
 	 */
@@ -166,8 +171,8 @@ class Crud {
 	/**
 	 * Update a row by primary key.
 	 *
-	 * @param array $pk Column-value pairs.
-	 * @param array $bind Column-value pairs or array of string
+	 * @param  array $pk Column-value pairs.
+	 * @param  array $bind Column-value pairs or array of string
 	 * @return int The number of affected rows.
 	 * @throws Exception
 	 */
@@ -211,7 +216,7 @@ class Crud {
 	/**
 	 * Delete a row by primary key.
 	 *
-	 * @param array $pk Column-value pairs.
+	 * @param  array $pk Column-value pairs.
 	 * @return int The number of affected rows.
 	 * @throws Exception
 	 */
@@ -236,8 +241,8 @@ class Crud {
 	/**
 	 * Insert or update a row with specified data.
 	 *
-	 * @param array $fields Column-value pairs.
-	 * @param array $bind Column-value pairs.
+	 * @param  array $fields Column-value pairs.
+	 * @param  array $bind Column-value pairs.
 	 * @return int The number of affected rows.
 	 * @throws Exception
 	 */
@@ -285,7 +290,7 @@ class Crud {
 	/**
 	 * Return row count.
 	 *
-	 * @param mixed $where array or string.
+	 * @param  mixed $where array or string.
 	 * @return int
 	 * @throws Exception
 	 */
@@ -319,7 +324,7 @@ class Crud {
 	/**
 	 * Returns the ID of the last inserted row or sequence value.
 	 *
-	 * @param string|null $name Name of the sequence object from which the ID should be returned.
+	 * @param  string|null $name Name of the sequence object from which the ID should be returned.
 	 * @return string
 	 */
 	public function lastInsertId($name = null) {
@@ -329,7 +334,7 @@ class Crud {
 	/**
 	 * Run a function as a transaction
 	 *
-	 * @param callable $fn
+	 * @param  callable $fn
 	 * @return mixed
 	 * @throws \Exception
 	 */
@@ -339,7 +344,7 @@ class Crud {
 			$res = call_user_func($fn);
 			$this->db->commit();
 			return $res;
-		} catch(\Exception $e) {
+		} catch (\Exception $e) {
 			$this->db->rollBack();
 			throw $e;
 		}
@@ -361,8 +366,8 @@ class Crud {
 	 * Retrieve one row using the sql query in parameter
 	 * Will use the cache engine
 	 *
-	 * @param array $pk
-	 * @param Sql $sql
+	 * @param  array $pk
+	 * @param  Sql $sql
 	 * @return array
 	 */
 	protected function executeRetrieve(array $pk, Sql $sql) {
@@ -388,8 +393,8 @@ class Crud {
 	 * Retrieve rows using the sql query in parameter
 	 * Will use the cache engine
 	 *
-	 * @param array $parameters
-	 * @param Sql $sql
+	 * @param  array $parameters
+	 * @param  Sql $sql
 	 * @return array
 	 */
 	protected function executeRetrieveAll(array $parameters, Sql $sql) {
@@ -431,7 +436,6 @@ class Crud {
 			default:
 				throw new Exception($e->getMessage(), $e->getCode(), $e);
 		}
-
 	}
 
 }
