@@ -3,7 +3,7 @@
 	"description": "MySQL database layer",
 	"type": "library",
 	"require": {
-		"php": ">=5.6.0",
+		"php": ">=7.4.0",
 		"sy/db": "^1",
 		"sy/template": "^2",
 		"psr/simple-cache": "^1"

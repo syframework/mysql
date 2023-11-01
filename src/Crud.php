@@ -178,7 +178,7 @@ class Crud {
 	 */
 	public function update(array $pk, array $bind) {
 		try {
-			$pk = array_map(fn($x) => is_null($x) ? $x : strval($x), $pk);
+			$pk = array_map(fn($x) => is_scalar($x) || (is_object($x) && method_exists($x, '__toString')) ? strval($x) : $x, $pk);
 			$row = $this->retrieve($pk);
 
 			$where = new Where($pk);
@@ -222,7 +222,7 @@ class Crud {
 	 */
 	public function delete(array $pk) {
 		try {
-			$pk = array_map(fn($x) => is_null($x) ? $x : strval($x), $pk);
+			$pk = array_map(fn($x) => is_scalar($x) || (is_object($x) && method_exists($x, '__toString')) ? strval($x) : $x, $pk);
 			$row = $this->retrieve($pk);
 
 			$where = new Where($pk);
@@ -371,7 +371,7 @@ class Crud {
 	 * @return array
 	 */
 	protected function executeRetrieve(array $pk, Sql $sql) {
-		$pk = array_map(fn($x) => is_null($x) ? $x : strval($x), $pk);
+		$pk = array_map(fn($x) => is_scalar($x) || (is_object($x) && method_exists($x, '__toString')) ? strval($x) : $x, $pk);
 
 		// Cache hit
 		$hash = $this->getCache($this->getCacheKey('key', $pk));
@@ -410,6 +410,10 @@ class Crud {
 		return $res;
 	}
 
+	/**
+	 * @param string $label
+	 * @param array|null $parameter
+	 */
 	protected function getCacheKey($label, $parameter = null) {
 		if (is_array($parameter)) {
 			ksort($parameter);
@@ -418,16 +422,27 @@ class Crud {
 		return $label . (is_null($parameter) ? '' : '/' . $parameter);
 	}
 
+	/**
+	 * @param string $key
+	 */
 	protected function getCache($key) {
 		if (is_null($this->cache)) return;
 		return $this->cache->get('db/' . $this->table . '/' . $key);
 	}
 
+	/**
+	 * @param string $key
+	 * @param mixed $value
+	 */
 	protected function setCache($key, $value) {
 		if (is_null($this->cache)) return;
 		return $this->cache->set('db/' . $this->table . '/' . $key, $value);
 	}
 
+	/**
+	 * @param \Sy\Db\Exception $e
+	 * @throws Exception
+	 */
 	protected function handleException(\Sy\Db\Exception $e) {
 		switch ($e->getCode()) {
 			case 1062:
