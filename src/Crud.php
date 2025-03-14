@@ -136,16 +136,8 @@ class Crud {
 	 */
 	public function retrieveAll(array $parameters = []) {
 		try {
-			// Cache hit
-			$key = $this->getCacheKey('retrieveAll', $parameters);
-			$res = $this->getCache($key);
-			if (!empty($res)) return $res;
-
-			// Cache miss
 			$parameters['FROM'] = $this->table;
-			$res = $this->db->queryAll(new Select($parameters), \PDO::FETCH_ASSOC);
-			$this->setCache($key, $res);
-			return $res;
+			return $this->executeRetrieveAll($parameters, new Select($parameters));
 		} catch (\Sy\Db\Exception $e) {
 			$this->handleException($e);
 		}
@@ -404,7 +396,6 @@ class Crud {
 		if (!empty($res)) return $res;
 
 		// Cache miss
-		$parameters['FROM'] = $this->table;
 		$res = $this->db->queryAll($sql, \PDO::FETCH_ASSOC);
 		$this->setCache($key, $res);
 		return $res;
@@ -412,7 +403,7 @@ class Crud {
 
 	/**
 	 * @param string $label
-	 * @param array|null $parameter
+	 * @param array|string|null $parameter
 	 */
 	protected function getCacheKey($label, $parameter = null) {
 		if (is_array($parameter)) {
