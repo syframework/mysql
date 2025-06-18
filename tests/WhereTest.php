@@ -40,9 +40,13 @@ class WhereTest extends TestCase {
 	}
 
 	public function testAssocArrayParamAssocArrayValue() {
-		$where = new Where(['c' => ['LIKE' => "'foo%'"]]);
-		$this->assertEquals("`c` LIKE 'foo%'", strval($where));
-		$this->assertEquals([], $where->getParams());
+		$where = new Where(['c' => ['LIKE' => 'foo%']]);
+		$this->assertEquals("`c` LIKE ?", strval($where));
+		$this->assertEquals(['foo%'], $where->getParams());
+
+		$where = new Where(['c' => ['<' => 10]]);
+		$this->assertEquals("`c` < ?", strval($where));
+		$this->assertEquals([10], $where->getParams());
 	}
 
 	public function testAssocArrayParamEmptyArrayValue() {
@@ -58,11 +62,11 @@ class WhereTest extends TestCase {
 			't.k2' => 'v2',
 			'a' => null,
 			'b' => ['one', 'two', 'three'],
-			'c' => ['LIKE' => "'foo%'"],
+			'c' => ['LIKE' => 'foo%'],
 			'd' => [],
 		]);
-		$this->assertEquals("foo = 'bar' AND `t`.`k1` = ? AND `t`.`k2` = ? AND `a` IS NULL AND `b` IN (?,?,?) AND `c` LIKE 'foo%' AND 1", strval($where));
-		$this->assertEquals(['v1', 'v2', 'one', 'two', 'three'], $where->getParams());
+		$this->assertEquals("foo = 'bar' AND `t`.`k1` = ? AND `t`.`k2` = ? AND `a` IS NULL AND `b` IN (?,?,?) AND `c` LIKE ? AND 1", strval($where));
+		$this->assertEquals(['v1', 'v2', 'one', 'two', 'three', 'foo%'], $where->getParams());
 	}
 
 	public function testFormatKey() {
