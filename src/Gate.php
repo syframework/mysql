@@ -27,7 +27,7 @@ class Gate extends \Sy\Db\Gate {
 	 *     'username' => 'username',
 	 *     'password' => 'password',
 	 *     'options' => [
-	 *         \PDO::MYSQL_ATTR_LOCAL_INFILE => true
+	 *         \Pdo\Mysql::ATTR_LOCAL_INFILE => true
 	 *     ]
 	 * ];
 	 *
@@ -55,8 +55,8 @@ class Gate extends \Sy\Db\Gate {
 		$password = isset($config['password']) ? $config['password'] : '';
 		$options = isset($config['options']) ? $config['options'] : array();
 
-		if (!isset($options[\PDO::MYSQL_ATTR_LOCAL_INFILE])) {
-			$options[\PDO::MYSQL_ATTR_LOCAL_INFILE] = true;
+		if (!isset($options[\Pdo\Mysql::ATTR_LOCAL_INFILE])) {
+			$options[\Pdo\Mysql::ATTR_LOCAL_INFILE] = true;
 		}
 
 		$pdo = PDOManager::getPDOInstance($dsn, $username, $password, $options);
